@@ -1,0 +1,67 @@
+plugins {
+    id 'java'
+}
+
+// If necessary, update the location of TestProject SDK JAR file
+def TP_SDK = 'TestProject_SDK_0.65.0'
+
+group 'nl.monkeysquare.addon'
+version '0.7'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+    flatDir {
+        dirs 'lib'
+    }
+}
+
+// Configurations
+configurations {
+    tpsdk
+    compileClasspath.extendsFrom tpsdk
+}
+
+dependencies {
+    tpsdk name: "${TP_SDK}"
+
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.2'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.2'
+}
+
+task generateTestProjectManifest {
+    def resourcesDir = sourceSets.main.output.resourcesDir
+    resourcesDir.mkdirs()
+    def contents = "{\"guid\":\"CCiYlrUq_0etqUwri5RdVg\",\"version\":\"${version}\",\"permissions\":[]}" as Object
+    new File(resourcesDir, "manifest.json").text = contents
+}
+
+// JAR Task
+jar {
+    dependsOn generateTestProjectManifest
+    dependsOn configurations.runtimeClasspath
+    from {
+        // Removes TestProject SDK from the final jar file
+        (configurations.runtimeClasspath - configurations.tpsdk).collect {
+            it.isDirectory() ? it : zipTree(it)
+        }
+    }
+
+    // Extract SDK version
+    from {
+        (configurations.tpsdk).collect {
+            zipTree(it).matching {
+                include 'testproject-sdk.properties'
+            }
+        }
+    }
+
+}
+
+test {
+    useJUnitPlatform()
+}
+
+
